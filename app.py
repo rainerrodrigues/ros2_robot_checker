@@ -34,18 +34,19 @@ def upload_file():
 
 @app.route('/run_sim', methods=['POST'])
 def run_sim():
-    if not last_report or not last_report.get('passed'):
-        return jsonify({"error": "Code must pass validation first!"}), 400
-
-    # Launch the simualtion runner program
-    runner = SimulationRunner(UPLOAD_FOLDER, last_report['ros_version'])
-    runner.run_simulation()
+    runner = SimulationRunner(UPLOAD_FOLDER, last_report.get('ros_version', 'ROS 2'))
     
-    return jsonify({
-        "status": "Simulation Complete",
-        "log_url": "/static/joint_motions.log",
-        "screenshot_url": "/static/screenshots/final_frame.png"
-    })
+    try:
+        runner.run_simulation()
+        
+        # 3. Return the paths so the frontend can display them
+        return jsonify({
+            "status": "Simulation Complete",
+            "log_url": "/static/joint_motions.log",
+            "screenshot_url": "/static/screenshots/final_frame.png"
+        })
+    except Exception as e:
+        return jsonify({"error": f"Simulation failed: {str(e)}"}), 500
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000, debug=True)

@@ -13,7 +13,7 @@ class SimulationRunner:
 
     def run_simulation(self):
         if self.ros_version == "ROS 2":
-            launch_cmd = ['ros2', 'launch', 'ur_simulation_gazebo', 'ur_sim_control.launch.py']
+            launch_cmd = ['ros2', 'launch', 'ur_simulation_gz', 'ur_sim_control.launch.py']
             joint_topic = '/joint_states'
         else:
             launch_cmd = ['roslaunch', 'ur_gazebo', 'ur5_bringup.launch']
@@ -52,28 +52,28 @@ class SimulationRunner:
     Checks if the 'cube' is within 10cm of the 'target_marker'
     Target coordinates from our world file: x=0.5, y=0.5
     """
-    	try:
-        	#Getting Gazebo CLI to capture
-        	result = subprocess.run(
-            	['gz', 'model', '--model-name', 'cube', '--pose'], 
-            	capture_output=True, text=True
-        	)
+        try:
+                #Getting Gazebo CLI to capture
+                result = subprocess.run(
+                ['gz', 'model', '--model-name', 'cube', '--pose'], 
+                capture_output=True, text=True
+                )
         
-        	#Parsing output using string parsing
-        	output = result.stdout
-        	x = float(output.split('x:')[1].split(',')[0].strip())
-       		y = float(output.split('y:')[1].split(',')[0].strip())
+                #Parsing output using string parsing
+                output = result.stdout
+                x = float(output.split('x:')[1].split(',')[0].strip())
+       	        y = float(output.split('y:')[1].split(',')[0].strip())
         
-        	# Calculate Euclidean distance to target (0.5, 0.5)
-        	target_x, target_y = 0.5, 0.5
-        	distance = math.sqrt((x - target_x)**2 + (y - target_y)**2)
+                # Calculate Euclidean distance to target (0.5, 0.5)
+                target_x, target_y = 0.5, 0.5
+                distance = math.sqrt((x - target_x)**2 + (y - target_y)**2)
         
-        	# Success if within 10cm (0.1 meters)
-        	return distance < 0.1
+                # Success if within 10cm (0.1 meters)
+                return distance < 0.1
 
-    except Exception as e:
-        print(f"Error verifying position: {e}")
-        return False 
+        except Exception as e:
+                print(f"Error verifying position: {e}")
+                return False 
 
     def cleanup(self):
         if self.sim_proc:

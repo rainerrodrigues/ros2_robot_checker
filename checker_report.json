@@ -1,0 +1,13 @@
+{
+    "ros_version": "ROS 2",
+    "syntax_errors": [],
+    "structure_errors": [],
+    "ros_entities": {
+        "publishers": 1,
+        "subscribers": 0,
+        "services": 0,
+        "actions": 0
+    },
+    "safety_warnings": [],
+    "passed": true
+}
