@@ -47,8 +47,17 @@ class SimulationRunner:
 
     def run_simulation(self):
         output_log = []
+        world_path = os.path.abspath(
+        os.path.join(
+            os.path.dirname(__file__),
+            'simulation',
+            'worlds',
+            'pick_and_place.world'
+        )
+        )
         if self.ros_version == "ROS 2":
-            launch_cmd = ['ros2', 'launch', 'ur_simulation_gz', 'ur_sim_control.launch.py']
+            launch_cmd = ['ros2', 'launch', 'ur_simulation_gz', 'ur_sim_control.launch.py', 
+            f'gz_args:={world_path}']
             joint_topic = '/joint_states'
         else:
             launch_cmd = ['roslaunch', 'ur_gazebo', 'ur5_bringup.launch']
