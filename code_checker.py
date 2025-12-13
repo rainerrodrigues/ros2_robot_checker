@@ -87,6 +87,8 @@ class ROSCodeChecker:
                     if res.returncode != 0:
                         self.report["syntax_errors"].append(f"{file}: {res.stderr}")
                         self.report["passed"] = False
+                    
+                    self._detect_entities(file_path, "cpp")
 
     def _detect_entities(self, file_path, is_python):
         """Finds publishers, subscribers,actions and services for ROS 1 and ROS 2"""
