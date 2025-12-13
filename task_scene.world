@@ -1,0 +1,29 @@
+<?xml version="1.0" ?>
+<sdf version="1.8">
+  <world name="robot_task_world">
+    <include><uri>https://fuel.gazebosim.org/1.0/OpenRobotics/models/Sun</uri></include>
+    <include><uri>https://fuel.gazebosim.org/1.0/OpenRobotics/models/Ground Plane</uri></include>
+
+    <model name="cube">
+      <pose>0.5 0 0.05 0 0 0</pose>
+      <link name="link">
+        <collision name="col"><geometry><box><size>0.1 0.1 0.1</size></box></geometry></collision>
+        <visual name="vis">
+          <geometry><box><size>0.1 0.1 0.1</size></box></geometry>
+          <material><ambient>1 0 0 1</ambient></material>
+        </visual>
+      </link>
+    </model>
+
+    <model name="target_marker">
+      <static>true</static>
+      <pose>0.5 0.5 0.01 0 0 0</pose>
+      <link name="link">
+        <visual name="vis">
+          <geometry><cylinder><radius>0.1</radius><length>0.01</length></cylinder></geometry>
+          <material><ambient>0 1 0 0.5</ambient></material>
+        </visual>
+      </link>
+    </model>
+  </world>
+</sdf>
