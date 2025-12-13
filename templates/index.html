@@ -68,7 +68,9 @@
             const data = await res.json();
             
             document.getElementById('simResults').style.display = 'block';
-            document.getElementById('simFrame').src = data.screenshot_url + "?t=" + new Date().getTime();
+            // In your JS function
+            document.getElementById('simFrame').src = "/static/screenshots/final_frame.png?t=" + new Date().getTime();
+            //document.getElementById('simFrame').src = data.screenshot_url + "?t=" + new Date().getTime();
         }
     </script>
 </body>

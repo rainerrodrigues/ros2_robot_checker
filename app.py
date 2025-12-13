@@ -2,6 +2,7 @@ from flask import Flask, render_template, request, jsonify, send_from_directory
 import os
 from code_checker import ROSCodeChecker
 from simulation_runner import SimulationRunner
+import shutil
 
 app = Flask(__name__)
 UPLOAD_FOLDER = 'uploads'
@@ -23,30 +24,48 @@ def upload_file():
         return jsonify({"error": "No file uploaded"}), 400
     
     file = request.files['file']
-    filepath = os.path.join(UPLOAD_FOLDER, file.filename)
-    file.save(filepath)
+    zip_path = os.path.join(UPLOAD_FOLDER, file.filename)
+    file.save(zip_path)
     
-    #Run the code checker
-    checker = ROSCodeChecker(filepath)
+    # 1. Define where to extract
+    extract_to = os.path.join(UPLOAD_FOLDER, "extracted_pkg")
+    if os.path.exists(extract_to):
+        shutil.rmtree(extract_to) # Clean previous uploads
+    
+    # 2. Run the checker (Ensure your checker unzips the file to 'extract_to')
+    checker = ROSCodeChecker(zip_path, extract_to)
     last_report = checker.run_full_check()
+    
+    # 3. Store the path of the actual package folder for the SimulationRunner
+    # We add the extraction path to the report so /run_sim knows where to look
+    last_report['package_extract_path'] = extract_to
     
     return jsonify(last_report)
 
 @app.route('/run_sim', methods=['POST'])
 def run_sim():
-    runner = SimulationRunner(UPLOAD_FOLDER, last_report.get('ros_version', 'ROS 2'))
-    
+    global last_report
     try:
-        runner.run_simulation()
+        # Pass the extracted folder path stored during upload
+        pkg_path = last_report.get('package_extract_path')
+        ros_ver = last_report.get('ros_version', 'ROS 2')
         
-        # 3. Return the paths so the frontend can display them
+        if not pkg_path:
+            return jsonify({"error": "Package path missing"}), 400
+
+        runner = SimulationRunner(pkg_path, ros_ver)
+        runner.run_simulation()
+        with open("static/cli_output.log", "r") as f:
+            cli_logs = f.read()
+        
         return jsonify({
-            "status": "Simulation Complete",
-            "log_url": "/static/joint_motions.log",
-            "screenshot_url": "/static/screenshots/final_frame.png"
+        "status": "Simulation Finished",
+        "cli_output": cli_logs
         })
+        
     except Exception as e:
-        return jsonify({"error": f"Simulation failed: {str(e)}"}), 500
+        print(f"Simulation Error:{e}")
+        return jsonify({"error": str(e)}), 500  
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000, debug=True)
