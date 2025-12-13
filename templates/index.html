@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>ROS Task Tool</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        .report-card { background: #f8f9fa; padding: 20px; border-radius: 8px; margin-top: 20px; }
+        .entity-badge { margin-right: 5px; }
+    </style>
+</head>
+<body class="container py-5">
+    <h1 class="mb-4">🤖 ROS Code Checker & Sim Tool</h1>
+
+    <div class="card p-4">
+        <h3>1. Upload ROS Package (.zip)</h3>
+        <input type="file" id="zipFile" class="form-control mb-3">
+        <button onclick="uploadAndCheck()" class="btn btn-primary">Validate Code</button>
+    </div>
+
+    <div id="reportArea" class="report-card" style="display:none;">
+        <h3>Validation Report</h3>
+        <p><strong>ROS Version:</strong> <span id="rosVer"></span></p>
+        <div id="entityBadges"></div>
+        <hr>
+        <h5>Syntax/Structure Status:</h5>
+        <pre id="errorLogs" class="text-danger"></pre>
+        
+        <button id="simBtn" onclick="triggerSim()" class="btn btn-success mt-3" style="display:none;">
+            🚀 Run Simulation
+        </button>
+    </div>
+
+    <div id="simResults" class="mt-4" style="display:none;">
+        <h3>Simulation Results</h3>
+        <div class="row">
+            <div class="col-md-6">
+                <h5>Joint Motion Logs</h5>
+                <iframe src="/static/joint_motions.log" width="100%" height="200px"></iframe>
+            </div>
+            <div class="col-md-6">
+                <h5>Final Frame Preview</h5>
+                <img id="simFrame" src="" class="img-fluid border" alt="Simulation Preview">
+            </div>
+        </div>
+    </div>
+
+    <script>
+        async function uploadAndCheck() {
+            const formData = new FormData();
+            formData.append('file', document.getElementById('zipFile').files[0]);
+
+            const res = await fetch('/upload', { method: 'POST', body: formData });
+            const data = await res.json();
+
+            document.getElementById('reportArea').style.display = 'block';
+            document.getElementById('rosVer').innerText = data.ros_version;
+            document.getElementById('errorLogs').innerText = data.syntax_errors.join('\n') || "No syntax errors found!";
+            
+            if(data.passed) {
+                document.getElementById('simBtn').style.display = 'block';
+            }
+        }
+
+        async function triggerSim() {
+            alert("Starting Simulation... This will take about 60 seconds.");
+            const res = await fetch('/run_sim', { method: 'POST' });
+            const data = await res.json();
+            
+            document.getElementById('simResults').style.display = 'block';
+            document.getElementById('simFrame').src = data.screenshot_url + "?t=" + new Date().getTime();
+        }
+    </script>
+</body>
+</html>
