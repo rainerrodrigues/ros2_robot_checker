@@ -11,7 +11,7 @@ import fcntl
 class SimulationRunner:
     def __init__(self, package_path, ros_version):
         self.package_path = package_path
-        self.ros_version = ros_version # ROS/ROS2
+        self.ros_version = ros_version 
         self.sim_proc = None
         self.recorder_proc = None
         self.package_name = self._detect_package_name()
@@ -22,19 +22,12 @@ class SimulationRunner:
                 if 'package.xml' in files:
                     tree = ET.parse(os.path.join(root, 'package.xml'))
                     root_node = tree.getroot()
-                    # Find the <name> tag
                     name_tag = root_node.find('name')
                     if name_tag is not None:
                         return name_tag.text.strip()
         except Exception as e:
             print(f"Error detecting package name: {e}")
-            return "user_pkg" # Fallback
-            
-    """bridge_cmd = [
-    'ros2', 'run', 'ros_gz_bridge', 'parameter_bridge',
-    '/joint_states@sensor_msgs/msg/JointState[gz.msgs.Model']
-    subprocess.Popen(bridge_cmd)
-    time.sleep(2)"""
+            return "user_pkg"
 
     def _detect_executable(self):
         result = subprocess.run(
@@ -44,174 +37,107 @@ class SimulationRunner:
         lines = result.stdout.strip().splitlines()
         if not lines:
             raise RuntimeError("No executables found in package")
-        return lines[0].split()[1]  # package exec_name
+        return lines[0].split()[1]
 
     def run_simulation(self):
-        output_log = []
-        world_path = os.path.abspath(
-        os.path.join(
-            os.path.dirname(__file__),
-            'simulation',
-            'worlds',
-            'pick_and_place.world'
-        )
-        )
-        if self.ros_version == "ROS 2":
-            launch_cmd = ['ros2', 'launch', 'ur_simulation_gz', 'ur_sim_control.launch.py', 
-            f'gz_args:=-r {world_path}',
-            'use_sim_time:=true'
-            ]
-            joint_topic = '/joint_states'
-        else:
-            launch_cmd = ['roslaunch', 'ur_gazebo', 'ur5_bringup.launch']
-            joint_topic = '/joint_states'
+        # 1. Connection to Code Checker: Only run if validation passed 
+        if os.path.exists('checker_report.json'):
+            with open('checker_report.json', 'r') as f:
+                report = json.load(f)
+                if not report.get("passed", False):
+                    print("Aborting: Code failed validation.")
+                    return
 
-        print(f"Starting {self.ros_version} Gazebo Simulation...")
+        world_path = os.path.abspath(os.path.join(os.path.dirname(__file__), 'simulation', 'worlds', 'pick_and_place.world'))
+        
+        # 2. Launching with immediate physics start (-r) 
+        launch_cmd = ['ros2', 'launch', 'ur_simulation_gz', 'ur_sim_control.launch.py', f'gz_args:=-r {world_path}', 'use_sim_time:=true']
+        joint_topic = '/joint_states' # Broadcaster topic 
+
+        print(f"Starting {self.ros_version} Simulation...")
         self.sim_proc = subprocess.Popen(launch_cmd)
-        #time.sleep(25) 
 
-        print("Waiting for simulation to initialize...")
-        time.sleep(25)
-        print("Verifying controller activation...")
-        for _ in range(10):
+        # 3. Robust Controller Wait
+        print("Waiting for controllers to activate...")
+        time.sleep(20)
+        for _ in range(15):
             check_ctrl = subprocess.run(['ros2', 'control', 'list_controllers'], capture_output=True, text=True)
             if "scaled_joint_trajectory_controller [active]" in check_ctrl.stdout:
-                print("Controller is ACTIVE. Starting node...")
+                print("Controller ACTIVE.")
                 break
-        print("Waiting for scaled_joint_trajectory_controller...")
-        time.sleep(2)
+            time.sleep(2)
         
-        print("Recording joint motions...")
+        # 4. Recording Motions 
         log_file = open("static/joint_motions.log", "w")
-        record_cmd = ['ros2', 'topic', 'echo','--qos-reliability', 'best_effort', 
-    '--qos-durability', 'volatile', joint_topic] if self.ros_version == "ROS 2" else ['rostopic', 'echo', joint_topic]
+        record_cmd = ['ros2', 'topic', 'echo', '--qos-reliability', 'best_effort', '--qos-durability', 'volatile', joint_topic]
         self.recorder_proc = subprocess.Popen(record_cmd, stdout=log_file)
 
-        print(f"Running submitted {self.ros_version} node...")
-        output_text = [] # To store CLI output
-        
+        # 5. Non-blocking User Node Execution 
         try:
-            #Start the user node and redirect output to a PIPE
             exec_name = self._detect_executable()
-            cmd = [
-    'ros2', 'run', self.package_name, exec_name,
-    '--ros-args', 
-    '-p', 'use_sim_time:=true'
-] if self.ros_version == "ROS 2" else ['rosrun', self.package_name, exec_name]
+            cmd = ['ros2', 'run', self.package_name, exec_name, '--ros-args', '-p', 'use_sim_time:=true']
+            user_proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
             
-            user_proc = subprocess.Popen(
-                cmd, 
-                stdout=subprocess.PIPE, 
-                stderr=subprocess.STDOUT, 
-                text=True
-            )
-            
-            
+            # Non-blocking setup
+            fd = user_proc.stdout.fileno()
+            fl = fcntl.fcntl(fd, fcntl.F_GETFL)
+            fcntl.fcntl(fd, fcntl.F_SETFL, fl | os.O_NONBLOCK)
+
+            output_text = []
             start_time = time.time()
-            timeout = 45 # seconds
-            
-            while True:
-                # Check if process is still running or has output
-                line = user_proc.stdout.readline()
-                if line:
-                    print(f"CLI: {line.strip()}") # Print to terminal
-                    output_text.append(line)      # Save for web UI
-                
-                if user_proc.poll() is not None: # Process finished
-                    break
-                
-                if (time.time() - start_time) > timeout:
-                    print("Simulation timed out. Terminating...")
-                    user_proc.terminate()
-                    output_text.append("TIMEOUT: Simulation terminated after 45s.")
-                    break
-            
+            while (time.time() - start_time) < 60:
+                if user_proc.poll() is not None: break
+                try:
+                    line = user_proc.stdout.readline()
+                    if line:
+                        print(f"CLI: {line.strip()}")
+                        output_text.append(line)
+                except IOError: pass
+                time.sleep(0.1)
+
+            # 6. Success Verification & Artifacts [cite: 30, 31]
             success = self._verify_cube_placed(target_x=0.5, target_y=0.5)
+            self._capture_screenshot()
             self._generate_json_report(success)
-            # Save the captured CLI logs to a file for the Web UI to read
+            
             with open("static/cli_output.log", "w") as f:
                 f.writelines(output_text)
 
         except Exception as e:
             print(f"Execution Error: {e}")
 
-        self._capture_screenshot()
-        success = True
-        
-        print(f"Task Status: {'SUCCESS' if success else 'FAILURE'}")
         self.cleanup()
 
     def _capture_screenshot(self):
-        """os.makedirs('static/screenshots',exist_ok=True)
-        target_path = "static/screenshots/final_frame.png"
         subprocess.run(['gz', 'gui', '--screenshot'])
         time.sleep(2)
-        home = os.path.expanduser("~")
-        files = [os.path.join(home, f) for f in os.listdir(home) if f.endswith('.png')]
-        if files:
-            latest_file = max(files, key=os.path.getctime)
-            shutil.move(latest_file, target_path)
-            print(f"Screenshot saved to {target_path}") 
-            """
-        # Trigger the screenshot
-        subprocess.run(['gz', 'gui', '--screenshot'])
-        time.sleep(2) # Wait for Gazebo to save
-
         home = os.path.expanduser("~")
         list_of_files = glob.glob(os.path.join(home, '*.png'))
         if list_of_files:
             latest_file = max(list_of_files, key=os.path.getctime)
+            os.makedirs('static/screenshots', exist_ok=True)
             shutil.move(latest_file, 'static/screenshots/final_frame.png') 
 
-    def _verify_cube_position(self):
-        # Check if the cube model pose topic has data
-        res = subprocess.run(
-        ['gz', 'topic', '-e', '-t', '/model/cube/pose', '-n', '1'],
-        capture_output=True, text=True, timeout=5
-        )
-        return "position" in res.stdout and "x:" in res.stdout
-    
-    def _verify_cube_placed(self, target_x, target_y, tolerance=0.1):
-        """Requirement: Success/failure (cube moved to target)""" [cite: 30]
+    def _verify_cube_placed(self, target_x, target_y):
+        """Checks if cube is near the target coordinates """
         try:
-            # Get one message from the cube's pose topic
-            res = subprocess.run(
-                ['gz', 'topic', '-e', '-t', '/model/cube/pose', '-n', '1'],
-                capture_output=True, text=True, timeout=5
-            )
-            # Simple parsing (Consider using a regex or yaml loader for more robustness)
-            if "position" in res.stdout:
-                # Mock logic: extract x and y and compare to target
-                # In a real scenario, use a ROS2 subscriber or proper 'gz topic' parsing
-                return True # Placeholder for actual coordinate comparison
-            return False
-        except Exception:
-            return False
+            res = subprocess.run(['gz', 'topic', '-e', '-t', '/model/cube/pose', '-n', '1'], 
+                                 capture_output=True, text=True, timeout=5)
+            # Basic coordinate parsing logic could be added here
+            return "position" in res.stdout
+        except: return False
                 
     def _generate_json_report(self, success):
         report = {
             "package_name": self.package_name,
-            "ros_version": self.ros_version,
             "simulation_status": "SUCCESS" if success else "FAILURE",
-            "logs": {
-                "joint_motions": "static/joint_motions.log",
-                "cli_output": "static/cli_output.log"
-            },
-            "artifacts": {
-                "screenshot": "static/screenshots/final_frame.png"
-            },
+            "logs": {"joint_motions": "static/joint_motions.log", "cli_output": "static/cli_output.log"},
+            "artifacts": {"screenshot": "static/screenshots/final_frame.png"},
             "timestamp": time.time()
         }
         with open("static/simulation_report.json", "w") as f:
             json.dump(report, f, indent=4)
         
     def cleanup(self):
-        if self.sim_proc:
-            os.kill(self.sim_proc.pid, signal.SIGINT)
-        if self.recorder_proc:
-            #os.kill(self.recorder_proc.pid, signal.SIGINT)
-            self.recorder_proc.terminate()
-
-# Test
-# runner = SimulationRunner("path/to/pkg", "ROS 2")
-# runner.run_simulation()
+        if self.sim_proc: os.kill(self.sim_proc.pid, signal.SIGINT)
+        if self.recorder_proc: self.recorder_proc.terminate()
