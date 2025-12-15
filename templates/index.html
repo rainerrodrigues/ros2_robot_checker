@@ -31,17 +31,23 @@
         </button>
     </div>
 
+   
     <div id="simResults" class="mt-4" style="display:none;">
-        <h3>Simulation Results</h3>
-        <div class="row">
-            <div class="col-md-6">
-                <h5>Joint Motion Logs</h5>
-                <iframe src="/static/joint_motions.log" width="100%" height="200px"></iframe>
-            </div>
-            <div class="col-md-6">
-                <h5>Final Frame Preview</h5>
-                <img id="simFrame" src="" class="img-fluid border" alt="Simulation Preview">
-            </div>
+    <h3>Simulation Results</h3>
+    <div id="statusBadge" class="alert mb-3"></div> 
+    
+    <div class="row">
+        <div class="col-md-4">
+            <h5>Joint Motion Logs</h5>
+            <iframe src="/static/joint_motions.log" width="100%" height="300px"></iframe>
+        </div>
+        <div class="col-md-4">
+            <h5>CLI Execution Logs</h5>
+            <textarea id="cliLogs" class="form-control bg-dark text-white" rows="12" readonly></textarea>
+        </div>
+        <div class="col-md-4">
+            <h5>Final Frame Preview</h5>
+            <img id="simFrame" src="" class="img-fluid border" alt="Simulation Preview">
         </div>
     </div>
 
@@ -63,15 +69,32 @@
         }
 
         async function triggerSim() {
-            alert("Starting Simulation... This will take about 60 seconds.");
+            const simBtn = document.getElementById('simBtn');
+            simBtn.disabled = true;
+            simBtn.innerText = "⏳ Simulating...";
+
             const res = await fetch('/run_sim', { method: 'POST' });
             const data = await res.json();
-            
+    
+            simBtn.disabled = false;
+            simBtn.innerText = "🚀 Run Simulation";
+
+            if (data.error) {
+                alert("Error: " + data.error);
+                return;
+            }
+
             document.getElementById('simResults').style.display = 'block';
-            // In your JS function
+    
+            // Set Status Badge (Success/Failure)
+            const badge = document.getElementById('statusBadge');
+            badge.innerText = data.status;
+            badge.className = data.success ? "alert alert-success" : "alert alert-danger";
+
+            // Update CLI Logs and Screenshots
+            document.getElementById('cliLogs').value = data.cli_output;
             document.getElementById('simFrame').src = "/static/screenshots/final_frame.png?t=" + new Date().getTime();
-            //document.getElementById('simFrame').src = data.screenshot_url + "?t=" + new Date().getTime();
-        }
+          }
     </script>
 </body>
 </html>

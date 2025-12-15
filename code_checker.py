@@ -13,7 +13,7 @@ class ROSCodeChecker:
             "ros_version": "Unknown",
             "syntax_errors": [],
             "structure_errors": [],
-            "ros_entities": {"publishers": 0, "subscribers": 0, "services": 0,"actions":0},
+            "ros_entities": {"publishers": 0, "subscribers": 0, "services": 0, "actions": 0, "initialized": False},
             "safety_warnings": [],
             "passed": True
         }
@@ -52,66 +52,71 @@ class ROSCodeChecker:
                 has_setup_py = True
 
         if not pkg_xml_path:
-            self.report["structure_errors"].append("Missing package.xml") 
+            self.report["structure_errors"].append("Missing package.xml") [cite: 14]
             self.report["passed"] = False
         else:
             try:
                 with open(pkg_xml_path, 'r') as f:
                     pkg = parse_package_string(f.read())
-                    # Detect version by build_type or package format
                     self.report["ros_version"] = "ROS 2" if has_setup_py or "ament_cmake" in [d.name for d in pkg.build_depends] else "ROS 1"
             except Exception as e:
                 self.report["structure_errors"].append(f"Malformed package.xml: {str(e)}")
 
         if not (has_cmake or has_setup_py):
-            self.report["structure_errors"].append("Missing build file (CMakeLists.txt or setup.py)")
+            self.report["structure_errors"].append("Missing build file (CMakeLists.txt or setup.py)") [cite: 14]
 
     def _check_code_details(self):
-        """Syntax validation for either ROS or ROS2"""
         for root, dirs, files in os.walk(self.extract_path):
             for file in files:
                 file_path = os.path.join(root, file)
                 
-                # Python Syntax Check (flake8)
                 if file.endswith('.py'):
-                    res = subprocess.run(['flake8', file_path], capture_output=True, text=True)
+                    # Syntax Check
+                    res = subprocess.run(['flake8', file_path], capture_output=True, text=True) [cite: 13]
                     if res.returncode != 0:
                         self.report["syntax_errors"].append(f"{file}: {res.stdout}")
                         self.report["passed"] = False
-
                     self._detect_entities(file_path, is_python=True)
 
-                # C++ Syntax Check (g++ dry-run) 
                 elif file.endswith(('.cpp', '.hpp', '.h')):
-                    res = subprocess.run(['g++', '-fsyntax-only', file_path], capture_output=True, text=True)
+                    # Syntax Check
+                    res = subprocess.run(['g++', '-fsyntax-only', file_path], capture_output=True, text=True) [cite: 13]
                     if res.returncode != 0:
                         self.report["syntax_errors"].append(f"{file}: {res.stderr}")
                         self.report["passed"] = False
-                    
-                    self._detect_entities(file_path, "cpp")
+                    self._detect_entities(file_path, is_python=False)
 
     def _detect_entities(self, file_path, is_python):
-        """Finds publishers, subscribers,actions and services for ROS 1 and ROS 2"""
         with open(file_path, 'r') as f:
             content = f.read()
-            # ROS 2 Patterns
-            self.report["ros_entities"]["publishers"] += content.count('create_publisher')
-            self.report["ros_entities"]["subscribers"] += content.count('create_subscription')
-            # ROS 1 Patterns
-            self.report["ros_entities"]["publishers"] += content.count('rospy.Publisher')
-            self.report["ros_entities"]["subscribers"] += content.count('rospy.Subscriber')
-            # Patterns for Actions
-            self.report["ros_entities"]["actions"] += content.count('ActionClient')
-            self.report["ros_entities"]["actions"] += content.count('ActionServer')
-            self.report["ros_entities"]["actions"] += content.count('SimpleActionClient')
-            self.report["ros_entities"]["actions"] += content.count('SimpleActionServer')
-            # Patterns for Services 
-            self.report["ros_entities"]["services"] += (content.count('create_service') + content.count('rospy.Service('))
+            
+            # Initialization Checks 
+            if 'rclpy.init' in content or 'rospy.init_node' in content or 'ros::init' in content:
+                self.report["ros_entities"]["initialized"] = True
 
-            if "joint" in content.lower() and any(x in content for x in ["> 3.14", "> 6.28"]):
+            # Entity Detection 
+            self.report["ros_entities"]["publishers"] += (content.count('create_publisher') + content.count('rospy.Publisher'))
+            self.report["ros_entities"]["subscribers"] += (content.count('create_subscription') + content.count('rospy.Subscriber'))
+            self.report["ros_entities"]["services"] += (content.count('create_service') + content.count('rospy.Service('))
+            
+            # Safety Heuristics 
+            if "while" in content and "sleep" not in content and "rclpy.spin" not in content:
+                self.report["safety_warnings"].append(f"{os.path.basename(file_path)}: Loop detected without sleep/spin (CPU safety risk).")
+            
+            if "joint" in content.lower() and ("> 3.14" in content or "> 6.28" in content):
                  self.report["safety_warnings"].append(f"{os.path.basename(file_path)}: Potential unsafe joint value detected.")
 
     def _finalize_report(self):
+        # Generate JSON Report 
         with open('checker_report.json', 'w') as f:
             json.dump(self.report, f, indent=4) 
+        
+        # Generate Text Report 
+        with open('checker_report.txt', 'w') as f:
+            f.write(f"ROS VERSION: {self.report['ros_version']}\n")
+            f.write(f"PASSED: {self.report['passed']}\n")
+            f.write(f"ENTITIES: {self.report['ros_entities']}\n")
+            f.write("ERRORS:\n" + "\n".join(self.report['syntax_errors'] + self.report['structure_errors']))
+            f.write("\nWARNINGS:\n" + "\n".join(self.report['safety_warnings']))
+            
         return self.report

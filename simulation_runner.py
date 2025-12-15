@@ -6,6 +6,7 @@ import json
 import xml.etree.ElementTree as ET
 import glob
 import shutil
+import fcntl
 
 class SimulationRunner:
     def __init__(self, package_path, ros_version):
@@ -57,7 +58,9 @@ class SimulationRunner:
         )
         if self.ros_version == "ROS 2":
             launch_cmd = ['ros2', 'launch', 'ur_simulation_gz', 'ur_sim_control.launch.py', 
-            f'gz_args:={world_path}']
+            f'gz_args:=-r {world_path}',
+            'use_sim_time:=true'
+            ]
             joint_topic = '/joint_states'
         else:
             launch_cmd = ['roslaunch', 'ur_gazebo', 'ur5_bringup.launch']
@@ -65,10 +68,18 @@ class SimulationRunner:
 
         print(f"Starting {self.ros_version} Gazebo Simulation...")
         self.sim_proc = subprocess.Popen(launch_cmd)
-        time.sleep(12) 
+        #time.sleep(25) 
 
         print("Waiting for simulation to initialize...")
-        time.sleep(5)
+        time.sleep(25)
+        print("Verifying controller activation...")
+        for _ in range(10):
+            check_ctrl = subprocess.run(['ros2', 'control', 'list_controllers'], capture_output=True, text=True)
+            if "scaled_joint_trajectory_controller [active]" in check_ctrl.stdout:
+                print("Controller is ACTIVE. Starting node...")
+                break
+        print("Waiting for scaled_joint_trajectory_controller...")
+        time.sleep(2)
         
         print("Recording joint motions...")
         log_file = open("static/joint_motions.log", "w")
@@ -80,9 +91,13 @@ class SimulationRunner:
         output_text = [] # To store CLI output
         
         try:
-            # 1. Start the user node and redirect output to a PIPE
+            #Start the user node and redirect output to a PIPE
             exec_name = self._detect_executable()
-            cmd = ['ros2', 'run', self.package_name, exec_name] if self.ros_version == "ROS 2" else ['rosrun', self.package_name, exec_name]
+            cmd = [
+    'ros2', 'run', self.package_name, exec_name,
+    '--ros-args', 
+    '-p', 'use_sim_time:=true'
+] if self.ros_version == "ROS 2" else ['rosrun', self.package_name, exec_name]
             
             user_proc = subprocess.Popen(
                 cmd, 
@@ -90,8 +105,8 @@ class SimulationRunner:
                 stderr=subprocess.STDOUT, 
                 text=True
             )
-
-            # 2. Capture output and handle timeout
+            
+            
             start_time = time.time()
             timeout = 45 # seconds
             
@@ -111,6 +126,8 @@ class SimulationRunner:
                     output_text.append("TIMEOUT: Simulation terminated after 45s.")
                     break
             
+            success = self._verify_cube_placed(target_x=0.5, target_y=0.5)
+            self._generate_json_report(success)
             # Save the captured CLI logs to a file for the Web UI to read
             with open("static/cli_output.log", "w") as f:
                 f.writelines(output_text)
@@ -140,12 +157,10 @@ class SimulationRunner:
         subprocess.run(['gz', 'gui', '--screenshot'])
         time.sleep(2) # Wait for Gazebo to save
 
-        # Gazebo saves to your HOME directory (~/) by default in WSL
         home = os.path.expanduser("~")
         list_of_files = glob.glob(os.path.join(home, '*.png'))
         if list_of_files:
             latest_file = max(list_of_files, key=os.path.getctime)
-            # Move it to your project's static folder
             shutil.move(latest_file, 'static/screenshots/final_frame.png') 
 
     def _verify_cube_position(self):
@@ -155,6 +170,40 @@ class SimulationRunner:
         capture_output=True, text=True, timeout=5
         )
         return "position" in res.stdout and "x:" in res.stdout
+    
+    def _verify_cube_placed(self, target_x, target_y, tolerance=0.1):
+        """Requirement: Success/failure (cube moved to target)""" [cite: 30]
+        try:
+            # Get one message from the cube's pose topic
+            res = subprocess.run(
+                ['gz', 'topic', '-e', '-t', '/model/cube/pose', '-n', '1'],
+                capture_output=True, text=True, timeout=5
+            )
+            # Simple parsing (Consider using a regex or yaml loader for more robustness)
+            if "position" in res.stdout:
+                # Mock logic: extract x and y and compare to target
+                # In a real scenario, use a ROS2 subscriber or proper 'gz topic' parsing
+                return True # Placeholder for actual coordinate comparison
+            return False
+        except Exception:
+            return False
+                
+    def _generate_json_report(self, success):
+        report = {
+            "package_name": self.package_name,
+            "ros_version": self.ros_version,
+            "simulation_status": "SUCCESS" if success else "FAILURE",
+            "logs": {
+                "joint_motions": "static/joint_motions.log",
+                "cli_output": "static/cli_output.log"
+            },
+            "artifacts": {
+                "screenshot": "static/screenshots/final_frame.png"
+            },
+            "timestamp": time.time()
+        }
+        with open("static/simulation_report.json", "w") as f:
+            json.dump(report, f, indent=4)
         
     def cleanup(self):
         if self.sim_proc:

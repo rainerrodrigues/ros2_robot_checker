@@ -5,6 +5,11 @@
     <light type="directional" name="sun">
       <direction>-0.5 0.5 -1</direction>
     </light>
+    <plugin
+  filename="gz_ros2_control-system"
+  name="gz_ros2_control::GazeboSimROS2ControlPlugin">
+  <parameters>$(find ur_simulation_gz)/config/ur_controllers.yaml</parameters>
+  </plugin>
 
     <!-- Ground plane -->
     <model name="ground">

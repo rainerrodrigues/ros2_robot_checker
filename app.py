@@ -3,6 +3,7 @@ import os
 from code_checker import ROSCodeChecker
 from simulation_runner import SimulationRunner
 import shutil
+import glob
 
 app = Flask(__name__)
 UPLOAD_FOLDER = 'uploads'
@@ -49,7 +50,12 @@ def run_sim():
         # Pass the extracted folder path stored during upload
         pkg_path = last_report.get('package_extract_path')
         ros_ver = last_report.get('ros_version', 'ROS 2')
-        
+        screenshots_dir = os.path.join(STATIC_FOLDER, 'screenshots')
+        screenshots = sorted(glob.glob(os.path.join(screenshots_dir, '*.png')))
+        screenshot_urls = [    
+            f"/static/screenshots/{os.path.basename(s)}"
+            for s in screenshots
+            ]
         if not pkg_path:
             return jsonify({"error": "Package path missing"}), 400
 
@@ -60,7 +66,8 @@ def run_sim():
         
         return jsonify({
         "status": "Simulation Finished",
-        "cli_output": cli_logs
+        "cli_output": cli_logs,
+        "screenshots": screenshot_urls
         })
         
     except Exception as e:
