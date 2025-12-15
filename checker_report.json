@@ -1,18 +1,15 @@
 {
     "ros_version": "ROS 2",
     "syntax_errors": [
-        "setup.py: uploads/extracted_pkg/src/pick_and_place/setup.py:40:1: W391 blank line at end of file\n",
-        "screenshotter.py: uploads/extracted_pkg/src/pick_and_place/pick_and_place/screenshotter.py:15:1: W391 blank line at end of file\n",
-        "joint_recorder.py: uploads/extracted_pkg/src/pick_and_place/pick_and_place/joint_recorder.py:6:1: E302 expected 2 blank lines, found 1\nuploads/extracted_pkg/src/pick_and_place/pick_and_place/joint_recorder.py:21:1: E302 expected 2 blank lines, found 1\nuploads/extracted_pkg/src/pick_and_place/pick_and_place/joint_recorder.py:27:1: W391 blank line at end of file\n",
-        "success_checker.py: uploads/extracted_pkg/src/pick_and_place/pick_and_place/success_checker.py:4:1: E302 expected 2 blank lines, found 1\nuploads/extracted_pkg/src/pick_and_place/pick_and_place/success_checker.py:8:1: W391 blank line at end of file\n",
-        "move_arm.py: uploads/extracted_pkg/src/pick_and_place/pick_and_place/move_arm.py:23:1: W293 blank line contains whitespace\nuploads/extracted_pkg/src/pick_and_place/pick_and_place/move_arm.py:25:1: W293 blank line contains whitespace\nuploads/extracted_pkg/src/pick_and_place/pick_and_place/move_arm.py:27:80: E501 line too long (86 > 79 characters)\nuploads/extracted_pkg/src/pick_and_place/pick_and_place/move_arm.py:27:87: W291 trailing whitespace\nuploads/extracted_pkg/src/pick_and_place/pick_and_place/move_arm.py:37:1: E302 expected 2 blank lines, found 1\n"
+        "test_copyright.py: uploads/extracted_pkg/src/ur5_pick_place/test/test_copyright.py:21:1: E128 continuation line under-indented for visual indent\n"
     ],
     "structure_errors": [],
     "ros_entities": {
         "publishers": 1,
-        "subscribers": 1,
+        "subscribers": 0,
         "services": 0,
-        "actions": 0
+        "actions": 0,
+        "initialized": true
     },
     "safety_warnings": [],
     "passed": false

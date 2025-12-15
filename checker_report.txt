@@ -1,0 +1,7 @@
+ROS VERSION: ROS 2
+PASSED: False
+ENTITIES: {'publishers': 1, 'subscribers': 0, 'services': 0, 'actions': 0, 'initialized': True}
+ERRORS:
+test_copyright.py: uploads/extracted_pkg/src/ur5_pick_place/test/test_copyright.py:21:1: E128 continuation line under-indented for visual indent
+
+WARNINGS:

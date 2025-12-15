@@ -52,7 +52,7 @@ class ROSCodeChecker:
                 has_setup_py = True
 
         if not pkg_xml_path:
-            self.report["structure_errors"].append("Missing package.xml") [cite: 14]
+            self.report["structure_errors"].append("Missing package.xml")
             self.report["passed"] = False
         else:
             try:
@@ -63,7 +63,7 @@ class ROSCodeChecker:
                 self.report["structure_errors"].append(f"Malformed package.xml: {str(e)}")
 
         if not (has_cmake or has_setup_py):
-            self.report["structure_errors"].append("Missing build file (CMakeLists.txt or setup.py)") [cite: 14]
+            self.report["structure_errors"].append("Missing build file (CMakeLists.txt or setup.py)")
 
     def _check_code_details(self):
         for root, dirs, files in os.walk(self.extract_path):
@@ -72,7 +72,7 @@ class ROSCodeChecker:
                 
                 if file.endswith('.py'):
                     # Syntax Check
-                    res = subprocess.run(['flake8', file_path], capture_output=True, text=True) [cite: 13]
+                    res = subprocess.run(['flake8', file_path], capture_output=True, text=True) 
                     if res.returncode != 0:
                         self.report["syntax_errors"].append(f"{file}: {res.stdout}")
                         self.report["passed"] = False
@@ -80,7 +80,7 @@ class ROSCodeChecker:
 
                 elif file.endswith(('.cpp', '.hpp', '.h')):
                     # Syntax Check
-                    res = subprocess.run(['g++', '-fsyntax-only', file_path], capture_output=True, text=True) [cite: 13]
+                    res = subprocess.run(['g++', '-fsyntax-only', file_path], capture_output=True, text=True)
                     if res.returncode != 0:
                         self.report["syntax_errors"].append(f"{file}: {res.stderr}")
                         self.report["passed"] = False
