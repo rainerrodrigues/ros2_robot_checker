@@ -56,21 +56,20 @@ def run_sim():
         # Run the simulation logic
         runner = SimulationRunner(pkg_path, ros_ver)
         runner.run_simulation()
+        
+        success = False
+        status_text = "Simulation Finished"
+        if os.path.exists("static/simulation_report.json"):
+            with open("static/simulation_report.json", "r") as f:
+                sim_report = json.load(f)
+                status_text = sim_report.get("simulation_status", "FINISHED")
+                success = (status_text == "SUCCESS")
 
         # Read the generated logs
         cli_logs = ""
         if os.path.exists("static/cli_output.log"):
             with open("static/cli_output.log", "r") as f:
                 cli_logs = f.read()
-
-        # Check for success from the runner's JSON report
-        status_text = "Simulation Finished"
-        success = False
-        if os.path.exists("static/simulation_report.json"):
-            with open("static/simulation_report.json", "r") as f:
-                sim_data = json.load(f)
-                status_text = sim_data.get("simulation_status", "FINISHED")
-                success = (status_text == "SUCCESS")
 
         return jsonify({
             "status": status_text,

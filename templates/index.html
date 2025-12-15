@@ -96,6 +96,26 @@
         
         document.getElementById('simBtn').style.display = data.passed ? 'block' : 'none';
     }
+    async function triggerSim() {
+    	const simBtn = document.getElementById('simBtn');
+    	simBtn.disabled = true;
+    	simBtn.innerText = "⏳ Simulating...";
+
+    	const res = await fetch('/run_sim', { method: 'POST' });
+    	const data = await res.json();
+    
+    	simBtn.disabled = false;
+    	simBtn.innerText = "🚀 Run Simulation";
+
+    	document.getElementById('simResults').style.display = 'block';
+    
+    	const badge = document.getElementById('statusBadge');
+    	badge.innerText = data.status;
+        badge.className = data.success ? "alert alert-success" : "alert alert-danger";
+
+       document.getElementById('cliLogs').value = data.cli_output;
+       document.getElementById('simFrame').src = "/static/screenshots/final_frame.png?t=" + new Date().getTime();
+       }
 </script>
 </body>
 </html>

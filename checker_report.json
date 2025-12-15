@@ -1,8 +1,6 @@
 {
     "ros_version": "ROS 2",
-    "syntax_errors": [
-        "test_copyright.py: uploads/extracted_pkg/src/ur5_pick_place/test/test_copyright.py:21:1: E128 continuation line under-indented for visual indent\n"
-    ],
+    "syntax_errors": [],
     "structure_errors": [],
     "ros_entities": {
         "publishers": 1,
@@ -12,5 +10,5 @@
         "initialized": true
     },
     "safety_warnings": [],
-    "passed": false
+    "passed": true
 }
