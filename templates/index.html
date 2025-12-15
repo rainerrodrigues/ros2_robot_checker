@@ -50,51 +50,52 @@
             <img id="simFrame" src="" class="img-fluid border" alt="Simulation Preview">
         </div>
     </div>
+    <div id="reportArea" class="report-card" style="display:none;">
+        <h3>Validation Report</h3>
+        <p><strong>ROS Version:</strong> <span id="rosVer"></span></p>
+        <div id="entityBadges" class="mb-3"></div> <hr>
+        <h5>Safety & Structure:</h5>
+        <ul id="safetyWarnings" class="text-warning"></ul>
+        <hr>
+        <h5>Syntax/Structure Status:</h5>
+        <pre id="errorLogs" class="text-danger"></pre>
+        
+        <button id="simBtn" onclick="triggerSim()" class="btn btn-success mt-3" style="display:none;">
+            🚀 Run Simulation
+        </button>
+    </div>
+<script>
+    async function uploadAndCheck() {
+        const fileInput = document.getElementById('zipFile');
+        if (!fileInput.files[0]) return alert("Please select a file");
 
-    <script>
-        async function uploadAndCheck() {
-            const formData = new FormData();
-            formData.append('file', document.getElementById('zipFile').files[0]);
+        const formData = new FormData();
+        formData.append('file', fileInput.files[0]);
 
-            const res = await fetch('/upload', { method: 'POST', body: formData });
-            const data = await res.json();
+        const res = await fetch('/upload', { method: 'POST', body: formData });
+        const data = await res.json();
 
-            document.getElementById('reportArea').style.display = 'block';
-            document.getElementById('rosVer').innerText = data.ros_version;
-            document.getElementById('errorLogs').innerText = data.syntax_errors.join('\n') || "No syntax errors found!";
-            
-            if(data.passed) {
-                document.getElementById('simBtn').style.display = 'block';
-            }
-        }
+        document.getElementById('reportArea').style.display = 'block';
+        document.getElementById('rosVer').innerText = data.ros_version;
+        
+        // Display ROS Entities
+        const ent = data.ros_entities;
+        document.getElementById('entityBadges').innerHTML = `
+            <span class="badge bg-info">Pubs: ${ent.publishers}</span>
+            <span class="badge bg-info">Subs: ${ent.subscribers}</span>
+            <span class="badge bg-secondary">Services: ${ent.services}</span>
+            <span class="badge bg-dark">Initialized: ${ent.initialized}</span>
+        `;
 
-        async function triggerSim() {
-            const simBtn = document.getElementById('simBtn');
-            simBtn.disabled = true;
-            simBtn.innerText = "⏳ Simulating...";
+        // Display Safety Warnings
+        const safetyList = document.getElementById('safetyWarnings');
+        safetyList.innerHTML = data.safety_warnings.map(w => `<li>${w}</li>`).join('') || "<li>No safety issues detected.</li>";
 
-            const res = await fetch('/run_sim', { method: 'POST' });
-            const data = await res.json();
-    
-            simBtn.disabled = false;
-            simBtn.innerText = "🚀 Run Simulation";
-
-            if (data.error) {
-                alert("Error: " + data.error);
-                return;
-            }
-
-            document.getElementById('simResults').style.display = 'block';
-    
-            // Set Status Badge (Success/Failure)
-            const badge = document.getElementById('statusBadge');
-            badge.innerText = data.status;
-            badge.className = data.success ? "alert alert-success" : "alert alert-danger";
-
-            // Update CLI Logs and Screenshots
-            document.getElementById('cliLogs').value = data.cli_output;
-            document.getElementById('simFrame').src = "/static/screenshots/final_frame.png?t=" + new Date().getTime();
-          }
-    </script>
+        // Display Syntax Errors
+        document.getElementById('errorLogs').innerText = data.syntax_errors.concat(data.structure_errors).join('\n') || "No errors found!";
+        
+        document.getElementById('simBtn').style.display = data.passed ? 'block' : 'none';
+    }
+</script>
 </body>
 </html>

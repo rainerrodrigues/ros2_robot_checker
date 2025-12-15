@@ -47,32 +47,39 @@ def upload_file():
 def run_sim():
     global last_report
     try:
-        # Pass the extracted folder path stored during upload
         pkg_path = last_report.get('package_extract_path')
         ros_ver = last_report.get('ros_version', 'ROS 2')
-        screenshots_dir = os.path.join(STATIC_FOLDER, 'screenshots')
-        screenshots = sorted(glob.glob(os.path.join(screenshots_dir, '*.png')))
-        screenshot_urls = [    
-            f"/static/screenshots/{os.path.basename(s)}"
-            for s in screenshots
-            ]
-        if not pkg_path:
-            return jsonify({"error": "Package path missing"}), 400
 
+        if not pkg_path:
+            return jsonify({"error": "No validated package found"}), 400
+
+        # Run the simulation logic
         runner = SimulationRunner(pkg_path, ros_ver)
         runner.run_simulation()
-        with open("static/cli_output.log", "r") as f:
-            cli_logs = f.read()
-        
+
+        # Read the generated logs
+        cli_logs = ""
+        if os.path.exists("static/cli_output.log"):
+            with open("static/cli_output.log", "r") as f:
+                cli_logs = f.read()
+
+        # Check for success from the runner's JSON report
+        status_text = "Simulation Finished"
+        success = False
+        if os.path.exists("static/simulation_report.json"):
+            with open("static/simulation_report.json", "r") as f:
+                sim_data = json.load(f)
+                status_text = sim_data.get("simulation_status", "FINISHED")
+                success = (status_text == "SUCCESS")
+
         return jsonify({
-        "status": "Simulation Finished",
-        "cli_output": cli_logs,
-        "screenshots": screenshot_urls
+            "status": status_text,
+            "success": success,
+            "cli_output": cli_logs
         })
         
     except Exception as e:
-        print(f"Simulation Error:{e}")
-        return jsonify({"error": str(e)}), 500  
-
+        return jsonify({"error": str(e)}), 500
+        
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000, debug=True)
