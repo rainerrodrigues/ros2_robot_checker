@@ -22,7 +22,7 @@ To run this tool, you need a functional ROS 2 environment with the necessary dep
 
     ```bash
     pip install Flask
-    # Add any other required non-standard libraries here (e.g., if needed for code_checker.py)
+    # Add any other required non-standard libraries here (e.g., if needed for code_checker.py) and create a virtual environment while doing this
     ```
 
 2.  **Configure ROS 2 Workspace:**
