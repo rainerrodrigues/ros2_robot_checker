@@ -4,6 +4,8 @@ from code_checker import ROSCodeChecker
 from simulation_runner import SimulationRunner
 import shutil
 import glob
+import time
+import json
 
 app = Flask(__name__)
 UPLOAD_FOLDER = 'uploads'
@@ -51,7 +53,7 @@ def run_sim():
         ros_ver = last_report.get('ros_version', 'ROS 2')
 
         if not pkg_path:
-            return jsonify({"error": "No validated package found","success": False}), 400
+            return jsonify({"error": "No validated package found","success": False,"status": "ERROR"}), 400
 
         # Run the simulation logic
         runner = SimulationRunner(pkg_path, ros_ver)
@@ -73,11 +75,17 @@ def run_sim():
         if os.path.exists("static/cli_output.log"):
             with open("static/cli_output.log", "r") as f:
                 cli_logs = f.read()
+                
+        joint_logs = "Joint motions not captured."
+        if os.path.exists("static/joint_motions.log"):
+            with open("static/joint_motions.log", "r") as f:
+                joint_logs = f.read()
 
         return jsonify({
             "status": status_text,
             "success": success,
-            "cli_output": cli_logs
+            "cli_output": cli_logs,
+            "joint_output": joint_logs
         })
         
     except Exception as e:

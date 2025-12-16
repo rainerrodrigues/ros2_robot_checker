@@ -119,6 +119,8 @@ class SimulationRunner:
         
     def _capture_screenshot(self):
         try:
+            base_dir = os.path.dirname(os.path.abspath(__file__))
+            target_path = os.path.join(base_dir, 'static', 'screenshots', 'final_frame.png')
             subprocess.run(['gz', 'gui', '--screenshot'], timeout=10)
             time.sleep(3)
             
@@ -128,11 +130,9 @@ class SimulationRunner:
             if list_of_files:
                 latest_file = max(list_of_files, key=os.path.getctime)
                 target_dir = os.path.join('static', 'screenshots')
-                os.makedirs('static/screenshots', exist_ok=True)
-                shutil.copy(latest_file, os.path.join(target_dir, 'final_frame.png'))
-                os.remove(latest_file)
+                os.makedirs(os.path.dirname(target_path), exist_ok=True)
+                shutil.move(latest_file, target_path) # Move file to the correct static path
                 print("Screenshot saved successfully.")
-                #shutil.move(latest_file, 'static/screenshots/final_frame.png')
         except Exception as e:
             print(f"Screenshot capture failed: {e}")
 
