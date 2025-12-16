@@ -100,21 +100,39 @@
     	const simBtn = document.getElementById('simBtn');
     	simBtn.disabled = true;
     	simBtn.innerText = "⏳ Simulating...";
+    	const resultsArea = document.getElementById('simResults');
 
     	const res = await fetch('/run_sim', { method: 'POST' });
     	const data = await res.json();
     
     	simBtn.disabled = false;
     	simBtn.innerText = "🚀 Run Simulation";
+    	
+    	resultsArea.style.display = 'block';
 
     	document.getElementById('simResults').style.display = 'block';
     
-    	const badge = document.getElementById('statusBadge');
+    	/*const badge = document.getElementById('statusBadge');
     	badge.innerText = data.status;
+        badge.className = data.success ? "alert alert-success" : "alert alert-danger"; */
+        const badge = document.getElementById('statusBadge');
+        badge.innerText = data.status + (data.success ? " - SUCCESS" : " - FAILURE");
         badge.className = data.success ? "alert alert-success" : "alert alert-danger";
+        
+        const timestamp = new Date().getTime();
+        const logFrame = document.querySelector('iframe');
+        logFrame.src = `/static/joint_motions.log?t=${timestamp}`;
+        //logFrame.src = "/static/joint_motions.log?t=" + new Date().getTime();
 
-       document.getElementById('cliLogs').value = data.cli_output;
-       document.getElementById('simFrame').src = "/static/screenshots/final_frame.png?t=" + new Date().getTime();
+       document.getElementById('cliLogs').value = data.cli_output || "CLI logs not available.";
+       
+       const simImg = document.getElementById('simFrame');
+       simImg.src = "/static/screenshots/final_frame.png?t=" + timestamp;
+       simImg.alt = "Final Frame Preview";
+
+    simBtn.disabled = false;
+    simBtn.innerText = "🚀 Run Simulation";
+       //document.getElementById('simFrame').src = "/static/screenshots/final_frame.png?t=" + new Date().getTime();
        }
 </script>
 </body>

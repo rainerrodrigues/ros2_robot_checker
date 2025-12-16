@@ -95,28 +95,46 @@ class SimulationRunner:
                 except IOError: pass
                 time.sleep(0.1)
 
-            # 6. Success Verification & Artifacts [cite: 30, 31]
+            # Success Verification 
             success = self._verify_cube_placed(target_x=0.5, target_y=0.5)
-            self._capture_screenshot()
+            # self._capture_screenshot()
             self._generate_json_report(success)
             
             with open("static/cli_output.log", "w") as f:
                 f.writelines(output_text)
+                
 
         except Exception as e:
             print(f"Execution Error: {e}")
-
+            self._generate_json_report(False) # Report failure if node execution crashes
+            with open("static/cli_output.log", "w") as f:
+                f.writelines(output_text)
+                
+        self._capture_screenshot()
+            
+        # finally:
+        print(f"Task Status: {'SUCCESS' if success else 'FAILURE'}")
         self.cleanup()
 
+        
     def _capture_screenshot(self):
-        subprocess.run(['gz', 'gui', '--screenshot'])
-        time.sleep(2)
-        home = os.path.expanduser("~")
-        list_of_files = glob.glob(os.path.join(home, '*.png'))
-        if list_of_files:
-            latest_file = max(list_of_files, key=os.path.getctime)
-            os.makedirs('static/screenshots', exist_ok=True)
-            shutil.move(latest_file, 'static/screenshots/final_frame.png') 
+        try:
+            subprocess.run(['gz', 'gui', '--screenshot'], timeout=10)
+            time.sleep(3)
+            
+             
+            home = os.path.expanduser("~")
+            list_of_files = glob.glob(os.path.join(home, '*.png'))
+            if list_of_files:
+                latest_file = max(list_of_files, key=os.path.getctime)
+                target_dir = os.path.join('static', 'screenshots')
+                os.makedirs('static/screenshots', exist_ok=True)
+                shutil.copy(latest_file, os.path.join(target_dir, 'final_frame.png'))
+                os.remove(latest_file)
+                print("Screenshot saved successfully.")
+                #shutil.move(latest_file, 'static/screenshots/final_frame.png')
+        except Exception as e:
+            print(f"Screenshot capture failed: {e}")
 
     def _verify_cube_placed(self, target_x, target_y):
         """Checks if cube is near the target coordinates """
@@ -128,10 +146,12 @@ class SimulationRunner:
         except: return False
                 
     def _generate_json_report(self, success):
+        base_dir = os.path.dirname(os.path.abspath(__file__))
+        static_dir = os.path.join(base_dir, 'static')
         report = {
             "package_name": self.package_name,
             "simulation_status": "SUCCESS" if success else "FAILURE",
-            "logs": {"joint_motions": "static/joint_motions.log", "cli_output": "static/cli_output.log"},
+            "logs": {"joint_motions":os.path.join(static_dir, "joint_motions.log"), "cli_output":os.path.join(static_dir, "cli_output.log")},
             "artifacts": {"screenshot": "static/screenshots/final_frame.png"},
             "timestamp": time.time()
         }

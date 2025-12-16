@@ -2,11 +2,11 @@
     "package_name": "ur5_pick_place",
     "simulation_status": "FAILURE",
     "logs": {
-        "joint_motions": "static/joint_motions.log",
-        "cli_output": "static/cli_output.log"
+        "joint_motions": "/home/rainer/Projects/temp_ws/src/ros_robot_checker/static/joint_motions.log",
+        "cli_output": "/home/rainer/Projects/temp_ws/src/ros_robot_checker/static/cli_output.log"
     },
     "artifacts": {
         "screenshot": "static/screenshots/final_frame.png"
     },
-    "timestamp": 1765792905.396307
+    "timestamp": 1765856715.735414
 }
