@@ -1,3 +1,3 @@
-[INFO] [1765858494.918666018] [move_arm_node]: Move Arm Node Started
-[INFO] [1765858494.919267577] [move_arm_node]: Waiting for controller subscription...
-[INFO] [1765858495.124247049] [move_arm_node]: Trajectory published successfully.
+[INFO] [1765861065.612247745] [move_arm_node]: Move Arm Node Started
+[INFO] [1765861065.613134923] [move_arm_node]: Waiting for controller subscription...
+[INFO] [1765861066.220607644] [move_arm_node]: Trajectory published successfully.

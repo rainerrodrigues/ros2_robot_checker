@@ -71,6 +71,7 @@ class SimulationRunner:
         log_file = open("static/joint_motions.log", "w")
         record_cmd = ['ros2', 'topic', 'echo', '--qos-reliability', 'best_effort', '--qos-durability', 'volatile', joint_topic]
         self.recorder_proc = subprocess.Popen(record_cmd, stdout=log_file)
+        output_text = []
 
         # 5. Non-blocking User Node Execution 
         try:
@@ -83,7 +84,7 @@ class SimulationRunner:
             fl = fcntl.fcntl(fd, fcntl.F_GETFL)
             fcntl.fcntl(fd, fcntl.F_SETFL, fl | os.O_NONBLOCK)
 
-            output_text = []
+            #output_text = []
             start_time = time.time()
             while (time.time() - start_time) < 60:
                 if user_proc.poll() is not None: break
@@ -110,11 +111,11 @@ class SimulationRunner:
             with open("static/cli_output.log", "w") as f:
                 f.writelines(output_text)
                 
-        self._capture_screenshot()
             
-        # finally:
-        print(f"Task Status: {'SUCCESS' if success else 'FAILURE'}")
-        self.cleanup()
+        finally:
+            print(f"Task Status: {'SUCCESS' if success else 'FAILURE'}")
+            self._capture_screenshot()
+            self.cleanup()
 
         
     def _capture_screenshot(self):
@@ -129,9 +130,12 @@ class SimulationRunner:
             list_of_files = glob.glob(os.path.join(home, '*.png'))
             if list_of_files:
                 latest_file = max(list_of_files, key=os.path.getctime)
-                target_dir = os.path.join('static', 'screenshots')
-                os.makedirs(os.path.dirname(target_path), exist_ok=True)
+                base_dir = os.path.dirname(os.path.abspath(__file__))
+                target_dir = os.path.join(base_dir,'static', 'screenshots')
+                target_path = os.path.join(target_dir, 'final_frame.png')
+                os.makedirs(target_dir, exist_ok=True)
                 shutil.move(latest_file, target_path) # Move file to the correct static path
+                print(f"Screenshot successfully moved to: {target_path}")
                 print("Screenshot saved successfully.")
         except Exception as e:
             print(f"Screenshot capture failed: {e}")
